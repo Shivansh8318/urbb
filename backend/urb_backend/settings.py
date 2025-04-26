@@ -44,7 +44,8 @@ INSTALLED_APPS = [
     # Third-party apps
     "rest_framework",
     # Custom apps
-    "auth_api",
+   'student',
+    'teacher',
 ]
 
 MIDDLEWARE = [

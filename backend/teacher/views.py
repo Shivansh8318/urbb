@@ -5,7 +5,9 @@ from django.conf import settings
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from .models import User, Teacher
+from rest_framework.permissions import IsAuthenticated
+from student.models import User
+from .models import Teacher
 
 class ValidateTokenView(APIView):
     """
@@ -60,14 +62,16 @@ class ValidateTokenView(APIView):
                             user_type='teacher'
                         )
                         Teacher.objects.create(user=user)
-                        dashboard_route = 'TeacherDashboard'
+                        is_new_user = True
                     else:
                         user = User.objects.get(user_id=user_id)
                         user.name = name or user.name
                         user.identity_type = identity_type or user.identity_type
                         user.identity_value = identity_value or user.identity_value
                         user.save()
-                        dashboard_route = 'StudentDashboard' if user.user_type == 'student' else 'TeacherDashboard'
+                        is_new_user = not (user.gender and user.age)
+                    
+                    dashboard_route = 'TeacherDashboard'
                     
                     user_data = {
                         'success': True,
@@ -78,6 +82,7 @@ class ValidateTokenView(APIView):
                         'identity_value': user.identity_value,
                         'user_type': user.user_type,
                         'dashboard_route': dashboard_route,
+                        'is_new_user': is_new_user,
                         'identities': otpless_data.get('identities', []),
                         'timestamp': otpless_data.get('timestamp')
                     }
@@ -105,5 +110,54 @@ class ValidateTokenView(APIView):
         except Exception as e:
             return Response(
                 {'success': False, 'message': f'Server error: {str(e)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+class UpdateProfileView(APIView):
+    """
+    API view for updating teacher profile details.
+    """
+    def post(self, request):
+        try:
+            user = User.objects.get(user_id=request.data.get('user_id'))
+            user.name = request.data.get('name', user.name)
+            user.gender = request.data.get('gender', user.gender)
+            user.age = request.data.get('age', user.age)
+            user.save()
+            
+            teacher = Teacher.objects.get(user=user)
+            teacher.subject = request.data.get('subject', teacher.subject)
+            teacher.experience_years = request.data.get('experience_years', teacher.experience_years)
+            teacher.save()
+            
+            return Response(
+                {'success': True, 'message': 'Profile updated successfully'},
+                status=status.HTTP_200_OK
+            )
+        except Exception as e:
+            return Response(
+                {'success': False, 'message': f'Error updating profile: {str(e)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+class GetProfileView(APIView):
+    """
+    API view for retrieving teacher profile details.
+    """
+    def post(self, request):
+        try:
+            user = User.objects.get(user_id=request.data.get('user_id'))
+            teacher = Teacher.objects.get(user=user)
+            profile_data = {
+                'name': user.name,
+                'gender': user.gender,
+                'age': user.age,
+                'subject': teacher.subject,
+                'experience_years': teacher.experience_years,
+            }
+            return Response(profile_data, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response(
+                {'success': False, 'message': f'Error retrieving profile: {str(e)}'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )

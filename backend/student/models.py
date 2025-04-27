@@ -13,6 +13,8 @@ class User(models.Model):
     user_type = models.CharField(max_length=20, choices=USER_TYPES)
     created_at = models.DateTimeField(auto_now_add=True)
     last_login = models.DateTimeField(auto_now=True)
+    gender = models.CharField(max_length=10, choices=(('male', 'Male'), ('female', 'Female'), ('other', 'Other')), null=True, blank=True)
+    age = models.PositiveIntegerField(null=True, blank=True)
     
     def __str__(self):
         return f"{self.name or self.identity_value} ({self.get_user_type_display()})"
